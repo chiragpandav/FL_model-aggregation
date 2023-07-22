@@ -18,7 +18,7 @@ from client.pFedLA import pFedLAClient
 from rich.progress import track
 from tqdm import tqdm
 from utils.args import get_pFedLA_args
-from utils.models import HyperNetwork
+from utils.models_folktable import HyperNetwork
 
 from base import ServerBase
 
@@ -33,8 +33,10 @@ class pFedLAServer(ServerBase):
             self.args.local_epochs,
             self.args.k,
         )
+        
         if self.global_params_dict is not None:
             del self.global_params_dict  # pFedLA don't have global model
+
         if os.listdir(self.temp_dir) != []:
             if os.path.exists(self.temp_dir / "clients_model.pt"):
                 self.client_model_params_list = torch.load(
@@ -108,6 +110,7 @@ class pFedLAServer(ServerBase):
                     model_params=client_local_params,
                     verbose=(E % self.args.verbose_gap) == 1,
                 )
+                
                 self.all_clients_stats[client_id][f"ROUND: {E}"] = (
                     f"retain {retain_blocks}, {stats['loss_before']:.4f} -> {stats['loss_after']:.4f}",
                 )
@@ -174,9 +177,12 @@ class pFedLAServer(ServerBase):
         layer_params_dict = dict(
             zip(self.all_params_name, list(zip(*self.client_model_params_list)))
         )
+
+        print('layer_params_dict :: ', layer_params_dict)
+
         
         alpha, retain_blocks = self.hypernet(client_id)
-        print("From hypernet:  alpha ", alpha,"\n")
+        
 
         aggregated_parameters = {}
         default_weight = torch.tensor(
@@ -196,10 +202,11 @@ class pFedLAServer(ServerBase):
             else:
                 a = default_weight
 
-            
-            print(" NAME: all_params_name AND trainable_params_name",self.all_params_name," \n \n",self.trainable_params_name,"\n")
+            # print("From hypernet:  alpha ", alpha,"\n")
 
-            print("Default weight A and name", name,"  ::  " ,a,"\n")
+            # print(" NAME: all_params_name AND trainable_params_name",self.all_params_name," \n \n",self.trainable_params_name,"\n")
+
+            # print("Default weight A and name", name,"  ::  " ,a,"\n")
 
             if a.sum() == 0:
                 self.logger.log(self.all_clients_stats)
@@ -208,7 +215,7 @@ class pFedLAServer(ServerBase):
                 )
             
             
-            print("layer_params_dict[name]", name," :: ",layer_params_dict[name][0],"\n")
+            # print("layer_params_dict[name]", name," :: ",layer_params_dict[name][0],"\n")
 
             aggregated_parameters[name] = torch.sum(
                 a
@@ -221,7 +228,7 @@ class pFedLAServer(ServerBase):
         ##putting values to  particular client's weights
         self.client_model_params_list[client_id] = list(aggregated_parameters.values())
 
-        print(" aggregated_parameters[name] ",aggregated_parameters[name],"\n")
+        # print(" aggregated_parameters[name] ",aggregated_parameters[name],"\n")
         # print("aggregated_parameters : " , aggregated_parameters,"\n")
         print("retain_blocks : " , retain_blocks,"\n")
 
@@ -234,6 +241,9 @@ class pFedLAServer(ServerBase):
         retain_blocks: List[str] = [],
     ) -> None:
         # calculate gradients
+        print( "self.client_model_params_list[client_id] ",client_id,"  \n")
+        # print(self.client_model_params_list[client_id])
+
         hn_grads = torch.autograd.grad(
             outputs=list(
                 filter(

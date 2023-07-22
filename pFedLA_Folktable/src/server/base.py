@@ -17,7 +17,7 @@ import sys
 sys.path.append(_CURRENT_DIR.parent)
 
 
-from utils.models import CNNWithBatchNorm, CNNWithoutBatchNorm
+from utils.models_folktable import CNNWithBatchNorm, CNNWithoutBatchNorm, DeepNet
 from utils.util import (
     LOG_DIR,
     TEMP_DIR,
@@ -43,15 +43,26 @@ class ServerBase:
             "cuda" if self.args.gpu and torch.cuda.is_available() else "cpu"
         )
         fix_random_seed(self.args.seed)
+
         self.backbone = (
             CNNWithBatchNorm
             if self.args.dataset in ["cifar10", "cifar100"]
             else CNNWithoutBatchNorm
         )
+
+        # self.backbone = (
+        #     CNNWithBatchNorm
+        #     if self.args.dataset in ["cifar10", "cifar100"]
+        #     else DeepNet
+        # )
+
         self.logger = Console(record=True, log_path=False, log_time=False,)
         self.client_id_indices, self.client_num_in_total = get_client_id_indices(
             self.args.dataset
         )
+
+        # print(" self.client_id_indices, self.client_num_in_total:: ", self.client_id_indices," ::: ", self.client_num_in_total)
+
         self.temp_dir = TEMP_DIR / self.algo
         if not os.path.isdir(self.temp_dir):
             os.makedirs(self.temp_dir)
@@ -80,6 +91,8 @@ class ServerBase:
         self.all_clients_stats = {i: {} for i in self.client_id_indices}
 
     def train(self):
+
+        print("In server class \n")
         self.logger.log("=" * 30, "TRAINING", "=" * 30, style="bold green")
         progress_bar = (
             track(
@@ -125,6 +138,7 @@ class ServerBase:
                 with open(self.temp_dir / "epoch.pkl", "wb") as f:
                     pickle.dump(E, f)
         self.logger.log(self.all_clients_stats)
+
 
     @torch.no_grad()
     def aggregate_parameters(self, updated_params_cache, weights_cache):

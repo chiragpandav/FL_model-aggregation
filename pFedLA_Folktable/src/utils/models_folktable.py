@@ -9,7 +9,6 @@ from torch.nn import functional as F
 
 from .util import TEMP_DIR
 
-
 class Linear(nn.Module):
     def __init__(self, in_features, out_features) -> None:
         super().__init__()
@@ -46,9 +45,6 @@ class HyperNetwork(nn.Module):
         self.blocks_name = set(n.split(".")[0] for n, _ in backbone.named_parameters())
         self.cache_dir = TEMP_DIR / "hn"
 
-
-        print("  self.blocks_name in the beginning  ",self.blocks_name,"\n")
-
         if not os.path.isdir(self.cache_dir):
             os.system(f"mkdir -p {self.cache_dir}")
 
@@ -65,8 +61,10 @@ class HyperNetwork(nn.Module):
                                 nn.Linear(hidden_dim, hidden_dim),
                                 nn.ReLU(),
                             ),
+                            
                             # all negative tensor would be outputted sometimes if fc is torch.nn.Linear, which used kaiming init.
                             # so here use U(0,1) init instead.
+
                             "fc": {
                                 name: Linear(hidden_dim, client_num)
                                 for name in self.blocks_name
@@ -82,6 +80,9 @@ class HyperNetwork(nn.Module):
         self.retain_blocks: List[str] = []
 
     def mlp_parameters(self) -> List[nn.Parameter]:
+
+        print("self.mlp.parameters():: ", self.mlp)
+
         return list(filter(lambda p: p.requires_grad, self.mlp.parameters()))
 
     def fc_layer_parameters(self) -> List[nn.Parameter]:
@@ -98,7 +99,7 @@ class HyperNetwork(nn.Module):
     def forward(self, client_id: int) -> Tuple[Dict[str, torch.Tensor], List[str]]:
         self.current_client_id = client_id
 
-        print("  self.current_client_id : ",self.current_client_id,"\n")
+        print(" self.current_client_id : ",self.current_client_id,"\n")
 
         self.retain_blocks = []
         emd = self.embedding(
@@ -108,13 +109,15 @@ class HyperNetwork(nn.Module):
 
         feature = self.mlp(emd)
 
-        print("  feature : ",feature,"\n")
+        print("TEMP_DIR:: ",TEMP_DIR )
+
+        # print(" features : ",feature,"\n")
 
         alpha = {
             block: F.relu(self.fc_layers[block](feature)) for block in self.blocks_name
         }
 
-        print("  alpha: ",alpha,"\n")
+        # print("  alpha: ",alpha,"\n")
 
         default_weight = torch.tensor(
             [i == client_id for i in range(self.client_num)],
@@ -124,6 +127,7 @@ class HyperNetwork(nn.Module):
 
         print(" self.k ", self.K,"\n")
         # i set K =2 in arg.py
+
         if self.K > 0:  # HeurpFedLA
             
             blocks_name = []
@@ -132,7 +136,7 @@ class HyperNetwork(nn.Module):
             with torch.no_grad():
                 for name, weight in alpha.items():
 
-                    print("-: NAME AND WEIGHT : ", name, weight,"\n")
+                    # print("-: NAME AND WEIGHT : ", name, weight,"\n")
 
                     blocks_name.append(name)
                     self_weights.append(weight[client_id])
@@ -143,9 +147,9 @@ class HyperNetwork(nn.Module):
                 print("  topk_weights_idx ",topk_weights_idx ,"\n")
                 
             for i in topk_weights_idx:
-                print(" topk_weights_idx I  ",i,"\n")
+                # print(" topk_weights_idx I  ",i,"\n")
                 print(" blocks_name[i] Topk ",blocks_name[i],"\n")
-                print(" default_weight[i] Topk ",default_weight,"\n")
+                # print(" default_weight[i] Topk ",default_weight,"\n")
 
                 alpha[blocks_name[i]] = default_weight
                 self.retain_blocks.append(blocks_name[i])
@@ -187,6 +191,29 @@ ARGS = {
 # NOTE: unknown CNN model structure
 # Really don't know the specific structure of CNN model used in pFedLA.
 # Structures below are from FedBN's.
+
+class DeepNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # 14 : input shape
+        self.layer1 = nn.Linear(14, 512)
+        self.act1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(p=0.5)
+        self.layer2 = nn.Linear(512, 256)
+        self.act2 = nn.ReLU()
+        self.layer3 = nn.Linear(256, 60)
+        self.act3 = nn.ReLU()
+        self.output = nn.Linear(60, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.act1(self.layer1(x))
+        x = self.dropout1(x)
+        x = self.act2(self.layer2(x))
+        x = self.act3(self.layer3(x))
+        x = self.sigmoid(self.output(x))
+        return x
+    
 
 class CNNWithBatchNorm(nn.Module):
     def __init__(self, dataset):

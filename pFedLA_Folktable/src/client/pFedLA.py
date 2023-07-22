@@ -7,7 +7,6 @@ from utils.util import clone_parameters
 
 from .base import ClientBase
 
-
 class pFedLAClient(ClientBase):
     def __init__(
         self,
@@ -43,6 +42,7 @@ class pFedLAClient(ClientBase):
         self.set_parameters(model_params)
         self.get_client_local_dataset()
         self.model.to(self.device)
+        
         res, stats = self._log_while_training(evaluate=True, verbose=verbose)()
         self.model.cpu()
         return res, stats
@@ -50,6 +50,7 @@ class pFedLAClient(ClientBase):
     def _train(self):
         self.model.train()
         frz_model_params = clone_parameters(self.model)
+
         for _ in range(self.local_epochs):
             for x, y in self.trainset:
                 x, y = x.to(self.device), y.to(self.device)
@@ -61,9 +62,10 @@ class pFedLAClient(ClientBase):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+
         delta = OrderedDict(
             {
-                k: p1 - p0
+                k: p1 - p0 
                 for (k, p1), p0 in zip(
                     self.model.state_dict(keep_vars=True).items(),
                     frz_model_params.values(),
