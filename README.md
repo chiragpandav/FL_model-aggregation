@@ -1,2 +1,2 @@
 Run jupyter Notebook:
-pFedLA_Folktable/src/find_topK_layers
+pFedLA_Folktable/src/folkTable_FL.ipynb
