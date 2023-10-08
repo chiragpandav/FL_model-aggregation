@@ -31,11 +31,15 @@ def get_dataloader(
     if os.path.isdir(pickles_dir) is False:
         raise RuntimeError("Please preprocess and create pickles first.")
 
+    # 0.pkl
     pickle_path = (
         pickles_dir / f"{math.floor(client_id / client_num_in_each_pickles)}.pkl"
     )
+    # print("pickle_path util:: ",pickle_path)
+
     with open(pickle_path, "rb") as f:
         subset = pickle.load(f)
+        # print("type(subset) ::\n",subset)
     client_dataset = subset[client_id % client_num_in_each_pickles]
     val_samples_num = int(len(client_dataset) * valset_ratio)
     test_samples_num = int(len(client_dataset) * testset_ratio)
@@ -43,9 +47,11 @@ def get_dataloader(
     trainset, valset, testset = random_split(
         client_dataset, [train_samples_num, val_samples_num, test_samples_num]
     )
+    
     if only_dataset:
         return {"train": trainset, "val": valset, "test": testset}
-    trainloader = DataLoader(trainset, batch_size, shuffle=True)
+                
+    trainloader = DataLoader(trainset, batch_size, shuffle=True)    
     valloader = DataLoader(valset, batch_size)
     testloader = DataLoader(testset, batch_size)
     return {"train": trainloader, "val": valloader, "test": testloader}
@@ -70,9 +76,11 @@ def fix_random_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = True
 
 
-def clone_parameters(
+def clone_parameters(    
     src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module]
 ) -> OrderedDict[str, torch.Tensor]:
+    
+    print("clone_parameters called")
     if isinstance(src, OrderedDict):
         return OrderedDict(
             {

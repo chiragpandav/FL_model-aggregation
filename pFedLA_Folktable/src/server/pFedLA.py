@@ -22,7 +22,6 @@ from utils.models_folktable import HyperNetwork
 
 from base import ServerBase
 
-
 class pFedLAServer(ServerBase):
     def __init__(self):
         super(pFedLAServer, self).__init__(get_pFedLA_args(), "pFedLA")
@@ -50,7 +49,15 @@ class pFedLAServer(ServerBase):
                 for _ in range(self.client_num_in_total)
             ]
 
+        # print("chirag Num of Client models: ", len(self.client_model_params_list))
+                        
+        # print("chirag Client model Param :  ", self.client_model_params_list[0]," done")                 
+
         _dummy_model = self.backbone(self.args.dataset)
+
+        # print("_dummy_model",_dummy_model)
+        
+        # print(" self.temp_dir::  chirag", self.temp_dir)
         
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.embedding_dim,
@@ -74,13 +81,19 @@ class pFedLAServer(ServerBase):
         )
 
         self.all_params_name = [name for name in _dummy_model.state_dict().keys()]
+        
         self.trainable_params_name = [
             name
             for name, param in _dummy_model.state_dict(keep_vars=True).items()
             if param.requires_grad
         ]
 
+        # print("all_params_name chirag:: \n",self.all_params_name)
+        # print("trainable_params_name chirag:: \n",self.trainable_params_name)
+        
     def train(self) -> None:
+
+        print("PfedL server Train called")
         self.logger.log("=" * 30, "TRAINING", "=" * 30, style="bold green")
         progress_bar = (
             track(
@@ -105,12 +118,14 @@ class pFedLAServer(ServerBase):
                     retain_blocks,
                 ) = self.generate_client_model_parameters(client_id)
 
+                # print("generate client_local_params:: \n ", client_local_params,"generate client")
+
                 diff, stats = self.trainer.train(
                     client_id=client_id,
                     model_params=client_local_params,
                     verbose=(E % self.args.verbose_gap) == 1,
-                )
-                
+                )                
+                                
                 self.all_clients_stats[client_id][f"ROUND: {E}"] = (
                     f"retain {retain_blocks}, {stats['loss_before']:.4f} -> {stats['loss_after']:.4f}",
                 )
@@ -174,15 +189,17 @@ class pFedLAServer(ServerBase):
     def generate_client_model_parameters(
         self, client_id: int
     ) -> Tuple[OrderedDict[str, torch.Tensor], List[str]]:
+        
         layer_params_dict = dict(
             zip(self.all_params_name, list(zip(*self.client_model_params_list)))
         )
 
-        print('layer_params_dict :: ', layer_params_dict)
+        # print('layer_params_dict :: ', layer_params_dict)
 
         
         alpha, retain_blocks = self.hypernet(client_id)
         
+        # print("alpha", alpha)
 
         aggregated_parameters = {}
         default_weight = torch.tensor(
@@ -194,13 +211,15 @@ class pFedLAServer(ServerBase):
         
         for name in self.all_params_name:
             
-            if name in self.trainable_params_name:
-                
+            if name in self.trainable_params_name:                
                 
                 a = alpha[name.split(".")[0]]
+                # print ("if A",a)
 
             else:
                 a = default_weight
+
+            # print ("else A",a)
 
             # print("From hypernet:  alpha ", alpha,"\n")
 
@@ -208,28 +227,29 @@ class pFedLAServer(ServerBase):
 
             # print("Default weight A and name", name,"  ::  " ,a,"\n")
 
-            if a.sum() == 0:
-                self.logger.log(self.all_clients_stats)
+            if a.sum() == 0:                
+                self.logger.log(self.all_clients_stats)                
                 raise RuntimeError(
                     f"client [{client_id}]'s {name.split('.')[0]} alpha is a all 0 vector"
                 )
-            
-            
+                        
             # print("layer_params_dict[name]", name," :: ",layer_params_dict[name][0],"\n")
-
+            
             aggregated_parameters[name] = torch.sum(
                 a
                 / a.sum()
                 * torch.stack(layer_params_dict[name], dim=-1).to(self.device),
                 dim=-1,
             )
+
         
         # in the begining, its  client_model_params_list.value 
-        ##putting values to  particular client's weights
+        # putting values to  particular client's weights #
         self.client_model_params_list[client_id] = list(aggregated_parameters.values())
 
-        # print(" aggregated_parameters[name] ",aggregated_parameters[name],"\n")
-        # print("aggregated_parameters : " , aggregated_parameters,"\n")
+        # print(" aggregated_parameters[name] ",name," :: ",aggregated_parameters[name],"\n")
+        # print("aggregated_parameters keys : " , type(aggregated_parameters)," ",aggregated_parameters.keys() ,"\n")
+
         print("retain_blocks : " , retain_blocks,"\n")
 
         return aggregated_parameters, retain_blocks
@@ -242,7 +262,7 @@ class pFedLAServer(ServerBase):
     ) -> None:
         # calculate gradients
         print( "self.client_model_params_list[client_id] ",client_id,"  \n")
-        # print(self.client_model_params_list[client_id])
+        print( "diff ",diff,"  \n")
 
         hn_grads = torch.autograd.grad(
             outputs=list(
@@ -250,7 +270,7 @@ class pFedLAServer(ServerBase):
                     lambda param: param.requires_grad,
                     self.client_model_params_list[client_id],
                 )
-            ),
+            ),                        
             inputs=self.hypernet.mlp_parameters()
             + self.hypernet.fc_layer_parameters()
             + self.hypernet.emd_parameters(),
@@ -269,6 +289,7 @@ class pFedLAServer(ServerBase):
         )
         
         mlp_grads = hn_grads[: len(self.hypernet.mlp_parameters())]
+
         fc_grads = hn_grads[
             len(self.hypernet.mlp_parameters()) : len(
                 self.hypernet.mlp_parameters() + self.hypernet.fc_layer_parameters()
@@ -291,6 +312,7 @@ class pFedLAServer(ServerBase):
         self.hypernet.save_hn()
 
     def run(self):
+        print("PfedL server Run called")
         super().run()
         # clean out all HNs
         self.hypernet.clean_models()

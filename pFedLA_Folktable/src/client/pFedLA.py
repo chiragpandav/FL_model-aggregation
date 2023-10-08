@@ -32,12 +32,18 @@ class pFedLAClient(ClientBase):
             gpu,
         )
 
+        print ("pFedLA  Client Construct called")
+
     def train(
         self,
         client_id: int,
         model_params: OrderedDict[str, torch.Tensor],
         verbose=True,
     ):
+        
+        # print("pFedL Client train:: model param ::\n ",model_params)
+        print("pFedL Client train called")
+        
         self.client_id = client_id
         self.set_parameters(model_params)
         self.get_client_local_dataset()
@@ -47,7 +53,8 @@ class pFedLAClient(ClientBase):
         self.model.cpu()
         return res, stats
 
-    def _train(self):
+    def _train(self):        
+        print("pFedL Client __train called")
         self.model.train()
         frz_model_params = clone_parameters(self.model)
 

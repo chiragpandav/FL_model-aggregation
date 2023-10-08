@@ -37,6 +37,7 @@ class ClientBase:
         self.trainset: DataLoader = None
         self.testset: DataLoader = None
         self.model: torch.nn.Module = deepcopy(backbone)
+        
         self.optimizer: torch.optim.Optimizer = torch.optim.SGD(
             self.model.parameters(), lr=local_lr
         )
@@ -48,6 +49,10 @@ class ClientBase:
         self.local_lr = local_lr
         self.criterion = torch.nn.CrossEntropyLoss()
         self.logger = logger
+        
+        print("Base Client constructor")
+
+        # print("Clinet base self.mode::  \n", self.model)
 
     @torch.no_grad()
     def evaluate(self):
@@ -73,9 +78,11 @@ class ClientBase:
         return loss, acc
 
     def train(self):
+        print("Base Client train called")
         pass
 
     def _train(self):
+        print("Base Client __train called")
         pass
 
     def get_client_local_dataset(self):
@@ -86,6 +93,9 @@ class ClientBase:
             self.valset_ratio,
             self.testset_ratio,
         )
+
+        print("get_client_local_dataset called")
+                
         self.trainset = datasets["train"]
         self.valset = datasets["val"]
         self.testset = datasets["test"]
@@ -122,4 +132,5 @@ class ClientBase:
         return _log_and_train
 
     def set_parameters(self, model_params: OrderedDict):
+        # print("set param:: ",model_params," \n set param::" )
         self.model.load_state_dict(model_params, strict=True)

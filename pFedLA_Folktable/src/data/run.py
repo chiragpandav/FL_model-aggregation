@@ -113,6 +113,9 @@ def main(args):
         range(0, len(all_datasets), args.client_num_in_each_pickles)
     ):
         subset = all_datasets[client_id : client_id + args.client_num_in_each_pickles]
+        # print("subset:: /n ",subset)
+        print("pickles_dir / str(subset_id)::chirag ",pickles_dir / str(subset_id))
+
         with open(pickles_dir / str(subset_id) + ".pkl", "wb") as f:
             pickle.dump(subset, f)
 

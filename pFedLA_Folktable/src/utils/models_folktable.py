@@ -45,6 +45,8 @@ class HyperNetwork(nn.Module):
         self.blocks_name = set(n.split(".")[0] for n, _ in backbone.named_parameters())
         self.cache_dir = TEMP_DIR / "hn"
 
+        # print(" self.cache_dir::  chirag", self.cache_dir)
+
         if not os.path.isdir(self.cache_dir):
             os.system(f"mkdir -p {self.cache_dir}")
 
@@ -81,7 +83,7 @@ class HyperNetwork(nn.Module):
 
     def mlp_parameters(self) -> List[nn.Parameter]:
 
-        print("self.mlp.parameters():: ", self.mlp)
+        # print("self.mlp.parameters():: ", self.mlp)
 
         return list(filter(lambda p: p.requires_grad, self.mlp.parameters()))
 
@@ -148,7 +150,7 @@ class HyperNetwork(nn.Module):
                 
             for i in topk_weights_idx:
                 # print(" topk_weights_idx I  ",i,"\n")
-                print(" blocks_name[i] Topk ",blocks_name[i],"\n")
+                # print(" blocks_name[i] Topk ",blocks_name[i],"\n")
                 # print(" default_weight[i] Topk ",default_weight,"\n")
 
                 alpha[blocks_name[i]] = default_weight

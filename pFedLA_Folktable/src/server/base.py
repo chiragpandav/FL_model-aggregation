@@ -25,6 +25,7 @@ from utils.util import (
     fix_random_seed,
     get_client_id_indices,
 )
+
 from client.base import ClientBase
 
 
@@ -69,6 +70,8 @@ class ServerBase:
 
         _dummy_model = self.backbone(self.args.dataset)
 
+        print("Type :: _dummy_model ",type(_dummy_model))
+
         passed_epoch = 0
         self.global_params_dict: OrderedDict[str : torch.Tensor] = None
         
@@ -89,10 +92,12 @@ class ServerBase:
 
         self.trainer: ClientBase = None
         self.all_clients_stats = {i: {} for i in self.client_id_indices}
+        print("Server Called !")
 
-    def train(self):
+    def train(self):       
 
-        print("In server class \n")
+        print("Base server TRAIN called")
+
         self.logger.log("=" * 30, "TRAINING", "=" * 30, style="bold green")
         progress_bar = (
             track(
@@ -115,8 +120,11 @@ class ServerBase:
             updated_params_cache = []
             weights_cache = []
 
+            
             for client_id in selected_clients:
+                
                 client_local_params = clone_parameters(self.global_params_dict)
+
                 (updated_params, weight), stats = self.trainer.train(
                     client_id=client_id,
                     model_params=client_local_params,
@@ -185,7 +193,8 @@ class ServerBase:
         )
 
     def run(self):
-        self.logger.log("Arguments:", dict(self.args._get_kwargs()))
+        print("Base server Run called")
+        # self.logger.log("Arguments:", dict(self.args._get_kwargs()))
         self.train()
         self.test()
         if self.args.log:
